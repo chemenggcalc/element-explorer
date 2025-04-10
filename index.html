@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Element Explorer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        .element:hover, .symbol:hover {
+            transform: scale(1.1);
+            transition: transform 0.2s;
+        }
+        .drop-zone.drag-over {
+            background-color: #b2ebf2;
+            border-color: #00bcd4;
+            transform: scale(1.05);
+            transition: all 0.2s;
+        }
+        .matched {
+            animation: matchSuccess 0.5s;
+        }
+        @keyframes matchSuccess {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-purple-200 via-blue-200 to-green-200 min-h-screen flex items-center justify-center p-2 sm:p-4">
+    <div class="container w-full max-w-7xl mx-auto bg-white bg-opacity-90 rounded-2xl sm:rounded-3xl shadow-2xl p-2 sm:p-6 relative">
+        <button id="resetBtn" class="absolute top-2 right-2 bg-red-500 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-full text-xs sm:text-base font-semibold hover:bg-red-600 transition-all shadow-md hover:shadow-lg">Restart Quest! 🔄</button>
+        <h1 class="text-xl sm:text-3xl font-bold text-indigo-600 text-center mb-2 sm:mb-4">Element Explorer! 🔬</h1>
+        <div class="score-board text-base sm:text-xl text-blue-600 bg-white rounded-full px-2 sm:px-6 py-1 sm:py-2 inline-block mb-2 sm:mb-6 shadow-md">
+            Score: <span id="score" class="font-bold">0</span> 🌟 | Time: <span id="timer">0:00</span> ⏱️
+        </div>
+        
+        <div class="game-area flex flex-col gap-2 sm:gap-6 mb-2 sm:mb-6">
+            <div class="elements-container bg-white rounded-xl sm:rounded-2xl p-2 sm:p-4 shadow-lg border-2 sm:border-4 border-purple-500">
+                <h3 class="text-sm sm:text-lg font-semibold text-purple-600 mb-1 sm:mb-2">Drag Elements! 🧪</h3>
+                <div id="elements" class="flex flex-wrap gap-1 sm:gap-4 justify-center"></div>
+            </div>
+            <div class="symbols-container bg-white rounded-xl sm:rounded-2xl p-2 sm:p-4 shadow-lg border-2 sm:border-4 border-blue-500">
+                <h3 class="text-sm sm:text-lg font-semibold text-blue-600 mb-1 sm:mb-2">Match Symbols! ⚛️</h3>
+                <div id="dropZones" class="flex flex-wrap gap-1 sm:gap-4 justify-center"></div>
+            </div>
+        </div>
+
+        <div class="facts-container bg-white rounded-xl sm:rounded-2xl p-2 sm:p-6 shadow-lg border-2 sm:border-4 border-green-500 mb-2 sm:mb-6">
+            <h2 class="text-lg sm:text-2xl font-semibold text-green-600 mb-1 sm:mb-2">Fun Facts! 🌍</h2>
+            <p id="fact-text" class="text-sm sm:text-lg text-pink-600 font-medium">Match elements to learn!</p>
+            <a id="learnMore" href="#" target="_blank" class="mt-1 sm:mt-4 inline-block bg-yellow-400 text-white px-2 sm:px-4 py-1 sm:py-2 rounded-full hover:bg-yellow-500 transition-all text-xs sm:text-base hidden">Learn More! 📚</a>
+        </div>
+
+        <div class="text-center text-xs sm:text-sm text-gray-600 mb-2">
+            Created by <a href="https://chemenggcalc.com" target="_blank" class="text-indigo-600 hover:underline">ChemEnggCalc.com</a>
+        </div>
+    </div>
+
+    <!-- MyInstants Sounds -->
+    <audio id="correctSound" src="https://www.myinstants.com/media/sounds/correct.mp3"></audio> <!-- Correct Ding (0.5s) -->
+    <audio id="wrongSound" src="https://www.myinstants.com/media/sounds/nope_2.mp3"></audio>   <!-- Short Nope (0.3s) -->
+    <audio id="completeSound" src="https://www.myinstants.com/media/sounds/level-up.mp3"></audio> <!-- Level Up (1s) -->
+
+    <script>
+        const elementsData = [
+            { symbol: "H", name: "Hydrogen", fact: "Hydrogen powers stars like our Sun through fusion!", learnMore: "https://en.wikipedia.org/wiki/Hydrogen" },
+            { symbol: "He", name: "Helium", fact: "Helium lifts balloons and was found on the Sun first!", learnMore: "https://en.wikipedia.org/wiki/Helium" },
+            { symbol: "Li", name: "Lithium", fact: "Lithium fuels batteries and floats on water!", learnMore: "https://en.wikipedia.org/wiki/Lithium" },
+            { symbol: "Be", name: "Beryllium", fact: "Beryllium is strong and used in X-ray machines!", learnMore: "https://en.wikipedia.org/wiki/Beryllium" },
+            { symbol: "B", name: "Boron", fact: "Boron strengthens glass and helps plants grow!", learnMore: "https://en.wikipedia.org/wiki/Boron" },
+            { symbol: "C", name: "Carbon", fact: "Carbon forms diamonds and is in all living things!", learnMore: "https://en.wikipedia.org/wiki/Carbon" },
+            { symbol: "N", name: "Nitrogen", fact: "Nitrogen is 78% of the air we breathe!", learnMore: "https://en.wikipedia.org/wiki/Nitrogen" },
+            { symbol: "O", name: "Oxygen", fact: "Oxygen keeps us alive and powers rockets!", learnMore: "https://en.wikipedia.org/wiki/Oxygen" },
+            { symbol: "F", name: "Fluorine", fact: "Fluorine protects teeth and nonstick pans!", learnMore: "https://en.wikipedia.org/wiki/Fluorine" },
+            { symbol: "Ne", name: "Neon", fact: "Neon glows in signs and is super stable!", learnMore: "https://en.wikipedia.org/wiki/Neon" }
+        ];
+
+        let score = 0;
+        let seconds = 0;
+        let timerInterval = null;
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const elementsContainer = document.getElementById('elements');
+        const dropZonesContainer = document.getElementById('dropZones');
+        const factsText = document.getElementById('fact-text');
+        const learnMoreBtn = document.getElementById('learnMore');
+        const resetBtn = document.getElementById('resetBtn');
+        const correctSound = document.getElementById('correctSound');
+        const wrongSound = document.getElementById('wrongSound');
+        const completeSound = document.getElementById('completeSound');
+
+        function startTimer() {
+            if (!timerInterval) {
+                timerInterval = setInterval(() => {
+                    seconds++;
+                    const minutes = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    timerElement.textContent = `${minutes}:${secs < 10 ? '0' + secs : secs}`;
+                }, 1000);
+            }
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        function launchConfetti() {
+            confetti({
+                particleCount: 50,
+                spread: 50,
+                origin: { y: 0.6 },
+                colors: ['#ff0000', '#00ff00', '#0000ff', '#ffff00']
+            });
+        }
+
+        function playSound(audioElement) {
+            audioElement.currentTime = 0;
+            audioElement.play()
+                .then(() => console.log(`Playing: ${audioElement.id}`))
+                .catch(error => console.error(`Error playing ${audioElement.id}:`, error));
+        }
+
+        function shuffleElements() {
+            const remainingElements = Array.from(elementsContainer.children);
+            const shuffledElements = remainingElements.sort(() => Math.random() - 0.5);
+            elementsContainer.innerHTML = '';
+            shuffledElements.forEach(element => elementsContainer.appendChild(element));
+        }
+
+        function initGame() {
+            elementsContainer.innerHTML = '';
+            dropZonesContainer.innerHTML = '';
+            score = 0;
+            seconds = 0;
+            scoreElement.textContent = score;
+            timerElement.textContent = '0:00';
+            factsText.textContent = 'Match elements to learn!';
+            learnMoreBtn.classList.add('hidden');
+            stopTimer();
+            startTimer();
+            
+            const shuffledElements = [...elementsData].sort(() => Math.random() - 0.5);
+            
+            shuffledElements.forEach(element => {
+                const div = document.createElement('div');
+                div.className = 'element bg-purple-600 text-white p-1 sm:p-4 rounded-lg shadow-md cursor-grab text-center min-w-[60px] sm:min-w-[100px] text-xs sm:text-base';
+                div.textContent = element.name;
+                div.draggable = true;
+                div.dataset.name = element.name;
+                div.dataset.fact = element.fact;
+                div.dataset.learnMore = element.learnMore;
+                div.addEventListener('dragstart', dragStart);
+                elementsContainer.appendChild(div);
+            });
+            
+            shuffledElements.forEach(element => {
+                const div = document.createElement('div');
+                div.className = 'drop-zone bg-cyan-100 p-1 sm:p-4 rounded-lg shadow-md border-2 sm:border-4 border-dashed border-blue-500 text-center min-w-[60px] sm:min-w-[100px] text-xs sm:text-base';
+                div.textContent = element.symbol;
+                div.dataset.name = element.name;
+                div.addEventListener('dragover', dragOver);
+                div.addEventListener('drop', drop);
+                div.addEventListener('dragenter', dragEnter);
+                div.addEventListener('dragleave', dragLeave);
+                dropZonesContainer.appendChild(div);
+            });
+        }
+
+        function dragStart(e) {
+            e.dataTransfer.setData('text/plain', e.target.dataset.name);
+            e.dataTransfer.setData('fact', e.target.dataset.fact);
+            e.dataTransfer.setData('learnMore', e.target.dataset.learnMore);
+        }
+
+        function dragOver(e) {
+            e.preventDefault();
+        }
+
+        function dragEnter(e) {
+            e.preventDefault();
+            e.target.classList.add('drag-over');
+        }
+
+        function dragLeave(e) {
+            e.target.classList.remove('drag-over');
+        }
+
+        function drop(e) {
+            e.preventDefault();
+            const elementName = e.dataTransfer.getData('text/plain');
+            const fact = e.dataTransfer.getData('fact');
+            const learnMore = e.dataTransfer.getData('learnMore');
+            const dropZone = e.target.closest('.drop-zone');
+            
+            if (dropZone) {
+                if (dropZone.dataset.name === elementName) {
+                    score += 10;
+                    scoreElement.textContent = score;
+                    factsText.textContent = fact;
+                    factsText.classList.add('fade-in');
+                    setTimeout(() => factsText.classList.remove('fade-in'), 500);
+                    
+                    learnMoreBtn.href = learnMore;
+                    learnMoreBtn.classList.remove('hidden');
+                    
+                    const draggedElement = document.querySelector(`.element[data-name="${elementName}"]`);
+                    if (draggedElement) draggedElement.remove();
+                    
+                    dropZone.classList.add('bg-green-200', 'border-solid', 'border-green-500', 'matched');
+                    dropZone.textContent = `🎉 ${elementName}`;
+                    
+                    playSound(correctSound);
+                    launchConfetti();
+                    shuffleElements();
+                    
+                    if (document.querySelectorAll('.element').length === 0) {
+                        stopTimer();
+                        playSound(completeSound);
+                        setTimeout(() => alert(`You’re a Chemistry Champ! Score: ${score} in ${timerElement.textContent} 🌟`), 500);
+                    }
+                } else {
+                    playSound(wrongSound);
+                }
+                dropZone.classList.remove('drag-over');
+            }
+        }
+
+        resetBtn.addEventListener('click', () => {
+            initGame();
+        });
+
+        initGame();
+    </script>
+</body>
+</html>
