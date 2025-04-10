@@ -18,7 +18,7 @@ A fun, interactive game to learn chemical elements by matching names to symbols.
 - Created by [ChemEnggCalc.com](https://chemenggcalc.com).
 
 ## Deployment
-Hosted on GitHub Pages: `https://yourusername.github.io/element-explorer/`.
+Hosted on GitHub Pages: `https://chemenggcalc.github.io/element-explorer/`.
 
 ## Files
 - `index.html`: Main game file.
